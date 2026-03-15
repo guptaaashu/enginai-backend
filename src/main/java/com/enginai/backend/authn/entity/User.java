@@ -22,6 +22,8 @@ public class User {
 
     private String picture;
 
+    private String contactNo;
+
     // Google OAuth subject ID
     @Column(nullable = false, unique = true)
     private String googleId;

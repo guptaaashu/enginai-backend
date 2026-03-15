@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -17,6 +18,16 @@ import java.util.Map;
 public class AuthnController {
 
     private final AuthnService authnService;
+
+    /**
+     * GET /api/authn/login
+     * Entry point from the frontend — redirects into Google OAuth2 flow.
+     * Spring Security takes over from /oauth2/authorization/google onwards.
+     */
+    @GetMapping("/login")
+    public void login(HttpServletResponse response) throws IOException {
+        response.sendRedirect("/oauth2/authorization/google");
+    }
 
     /**
      * POST /api/authn/refresh
