@@ -25,6 +25,8 @@ public class TutorialSection {
     @Column(nullable = false)
     private SectionType type;
 
+    private String heading;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
