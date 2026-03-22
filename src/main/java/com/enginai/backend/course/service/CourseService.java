@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -176,11 +177,11 @@ public class CourseService {
                         .findFirst().orElse(null);
                 boolean correct = correctOption != null && correctOption.equals(submitted);
                 answer.setIsCorrect(correct);
-                result = new QuestionResultDto(q.getId(), "mcq", correct, correctOption, null);
+                result = new QuestionResultDto(q.getId(), "mcq", correct, correctOption, null, submitted);
             } else {
                 String modelAnswer = q.getModelAnswer() != null ? q.getModelAnswer().getModelAnswer() : null;
                 answer.setIsCorrect(null);
-                result = new QuestionResultDto(q.getId(), "written", null, null, modelAnswer);
+                result = new QuestionResultDto(q.getId(), "written", null, null, modelAnswer, submitted);
             }
 
             submission.getAnswers().add(answer);
@@ -208,5 +209,30 @@ public class CourseService {
         });
 
         return results;
+    }
+
+    @Transactional
+    public List<QuestionResultDto> getQuizResult(Long courseId, Long pageId, Long userId) {
+        UserQuizSubmission submission = quizSubmissionRepository
+                .findByUserIdAndPageIdWithAnswers(userId, pageId)
+                .orElseThrow(() -> new RuntimeException("No submission found"));
+
+        List<QuizQuestion> questions = quizQuestionRepository.findByPageIdWithDetails(pageId);
+        Map<Long, QuizQuestion> questionMap = questions.stream()
+                .collect(java.util.stream.Collectors.toMap(QuizQuestion::getId, q -> q));
+
+        return submission.getAnswers().stream().map(answer -> {
+            QuizQuestion q = questionMap.get(answer.getQuestion().getId());
+            if (q.getType() == QuizQuestion.QuestionType.MCQ) {
+                String correctOption = q.getOptions().stream()
+                        .filter(McqOption::getIsCorrect)
+                        .map(McqOption::getOptionText)
+                        .findFirst().orElse(null);
+                return new QuestionResultDto(q.getId(), "mcq", answer.getIsCorrect(), correctOption, null, answer.getAnswerText());
+            } else {
+                String modelAnswer = q.getModelAnswer() != null ? q.getModelAnswer().getModelAnswer() : null;
+                return new QuestionResultDto(q.getId(), "written", null, null, modelAnswer, answer.getAnswerText());
+            }
+        }).toList();
     }
 }

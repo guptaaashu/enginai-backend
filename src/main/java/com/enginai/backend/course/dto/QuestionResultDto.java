@@ -5,5 +5,6 @@ public record QuestionResultDto(
         String type,
         Boolean correct,        // true/false for MCQ, null for written
         String correctAnswer,   // correct option text for MCQ, null for written
-        String modelAnswer      // model answer for written, null for MCQ
+        String modelAnswer,     // model answer for written, null for MCQ
+        String userAnswer       // what the user submitted
 ) {}
