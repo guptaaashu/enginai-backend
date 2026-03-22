@@ -54,4 +54,11 @@ public class CourseController {
         Long userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(courseService.submitQuiz(courseId, pageId, userId, request));
     }
+
+    @GetMapping("/{courseId}/quiz/{pageId}/result")
+    public ResponseEntity<List<QuestionResultDto>> getQuizResult(@PathVariable Long courseId,
+                                                                   @PathVariable Long pageId) {
+        Long userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(courseService.getQuizResult(courseId, pageId, userId));
+    }
 }
