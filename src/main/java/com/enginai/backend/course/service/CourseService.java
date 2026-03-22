@@ -9,6 +9,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -20,6 +21,8 @@ public class CourseService {
     private final UserRepository userRepository;
     private final UserCourseEnrollmentRepository enrollmentRepository;
     private final UserPageCompletionRepository pageCompletionRepository;
+    private final QuizQuestionRepository quizQuestionRepository;
+    private final UserQuizSubmissionRepository quizSubmissionRepository;
 
     public List<CourseDto> getAllCourses() {
         return courseRepository.findAll()
@@ -107,5 +110,77 @@ public class CourseService {
             ContentDto content = new ContentDto(null, null, null, questions);
             return new PageContentDto(page.getId(), page.getTitle(), "question", null, quizNum, content);
         }
+    }
+
+    @Transactional
+    public List<QuestionResultDto> submitQuiz(Long courseId, Long pageId, Long userId, QuizSubmitRequest request) {
+        // Idempotent — return existing results if already submitted
+        if (quizSubmissionRepository.findByUserIdAndPageId(userId, pageId).isPresent()) {
+            throw new RuntimeException("Quiz already submitted");
+        }
+
+        User user = userRepository.findById(userId).orElseThrow();
+        Course course = courseRepository.findById(courseId).orElseThrow();
+        CoursePage page = coursePageRepository.findById(pageId).orElseThrow();
+
+        List<QuizQuestion> questions = quizQuestionRepository.findByPageIdWithDetails(pageId);
+
+        // Build submission
+        UserQuizSubmission submission = new UserQuizSubmission();
+        submission.setUser(user);
+        submission.setCourse(course);
+        submission.setPage(page);
+
+        List<QuestionResultDto> results = new ArrayList<>();
+
+        for (QuizQuestion q : questions) {
+            String submitted = request.answers().get(q.getId());
+
+            UserQuizAnswer answer = new UserQuizAnswer();
+            answer.setSubmission(submission);
+            answer.setQuestion(q);
+            answer.setAnswerText(submitted != null ? submitted : "");
+
+            QuestionResultDto result;
+
+            if (q.getType() == QuizQuestion.QuestionType.MCQ) {
+                String correctOption = q.getOptions().stream()
+                        .filter(McqOption::getIsCorrect)
+                        .map(McqOption::getOptionText)
+                        .findFirst().orElse(null);
+                boolean correct = correctOption != null && correctOption.equals(submitted);
+                answer.setIsCorrect(correct);
+                result = new QuestionResultDto(q.getId(), "mcq", correct, correctOption, null);
+            } else {
+                String modelAnswer = q.getModelAnswer() != null ? q.getModelAnswer().getModelAnswer() : null;
+                answer.setIsCorrect(null);
+                result = new QuestionResultDto(q.getId(), "written", null, null, modelAnswer);
+            }
+
+            submission.getAnswers().add(answer);
+            results.add(result);
+        }
+
+        quizSubmissionRepository.save(submission);
+
+        // Mark page as completed
+        UserPageCompletion completion = new UserPageCompletion();
+        completion.setUser(user);
+        completion.setPage(page);
+        pageCompletionRepository.save(completion);
+
+        // Advance currentPage in enrollment to next page
+        enrollmentRepository.findByUserIdAndCourseId(userId, courseId).ifPresent(enrollment -> {
+            List<CoursePage> allPages = courseRepository.findByIdWithPages(courseId).orElseThrow().getPages();
+            for (int i = 0; i < allPages.size() - 1; i++) {
+                if (allPages.get(i).getId().equals(pageId)) {
+                    enrollment.setCurrentPage(allPages.get(i + 1));
+                    enrollmentRepository.save(enrollment);
+                    break;
+                }
+            }
+        });
+
+        return results;
     }
 }
