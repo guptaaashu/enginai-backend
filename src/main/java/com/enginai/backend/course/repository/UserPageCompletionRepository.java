@@ -15,4 +15,6 @@ public interface UserPageCompletionRepository extends JpaRepository<UserPageComp
 
     @Query("SELECT c.page.id FROM UserPageCompletion c WHERE c.user.id = :userId AND c.page.course.id = :courseId")
     List<Long> findCompletedPageIds(@Param("userId") Long userId, @Param("courseId") Long courseId);
+
+    boolean existsByUser_IdAndPage_Id(Long userId, Long pageId);
 }
