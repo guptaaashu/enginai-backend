@@ -38,4 +38,12 @@ public class CourseController {
                                                           @PathVariable Long pageId) {
         return ResponseEntity.ok(courseService.getPageContent(courseId, pageId));
     }
+
+    @PostMapping("/{courseId}/quiz/{pageId}/submit")
+    public ResponseEntity<List<QuestionResultDto>> submitQuiz(@PathVariable Long courseId,
+                                                               @PathVariable Long pageId,
+                                                               @RequestBody QuizSubmitRequest request) {
+        Long userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(courseService.submitQuiz(courseId, pageId, userId, request));
+    }
 }
