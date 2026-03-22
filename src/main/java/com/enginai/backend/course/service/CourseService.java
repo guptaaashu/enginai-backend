@@ -113,6 +113,32 @@ public class CourseService {
     }
 
     @Transactional
+    public void completeTutorialPage(Long courseId, Long pageId, Long userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        CoursePage page = coursePageRepository.findById(pageId).orElseThrow();
+
+        // Idempotent — skip if already completed
+        if (!pageCompletionRepository.existsByUser_IdAndPage_Id(userId, pageId)) {
+            UserPageCompletion completion = new UserPageCompletion();
+            completion.setUser(user);
+            completion.setPage(page);
+            pageCompletionRepository.save(completion);
+        }
+
+        // Advance currentPage in enrollment to next page
+        enrollmentRepository.findByUserIdAndCourseId(userId, courseId).ifPresent(enrollment -> {
+            List<CoursePage> allPages = courseRepository.findByIdWithPages(courseId).orElseThrow().getPages();
+            for (int i = 0; i < allPages.size() - 1; i++) {
+                if (allPages.get(i).getId().equals(pageId)) {
+                    enrollment.setCurrentPage(allPages.get(i + 1));
+                    enrollmentRepository.save(enrollment);
+                    break;
+                }
+            }
+        });
+    }
+
+    @Transactional
     public List<QuestionResultDto> submitQuiz(Long courseId, Long pageId, Long userId, QuizSubmitRequest request) {
         // Idempotent — return existing results if already submitted
         if (quizSubmissionRepository.findByUserIdAndPageId(userId, pageId).isPresent()) {

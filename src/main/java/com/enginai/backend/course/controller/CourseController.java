@@ -39,6 +39,14 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getPageContent(courseId, pageId));
     }
 
+    @PostMapping("/{courseId}/pages/{pageId}/complete")
+    public ResponseEntity<Void> completeTutorialPage(@PathVariable Long courseId,
+                                                      @PathVariable Long pageId) {
+        Long userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        courseService.completeTutorialPage(courseId, pageId, userId);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/{courseId}/quiz/{pageId}/submit")
     public ResponseEntity<List<QuestionResultDto>> submitQuiz(@PathVariable Long courseId,
                                                                @PathVariable Long pageId,
